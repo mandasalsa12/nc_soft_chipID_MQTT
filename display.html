@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display - Nurse Call System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-blue-800">Nurse Call System</h1>
+                <p class="text-gray-600">Display Layout</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="bg-white p-3 rounded-lg shadow flex items-center">
+                    <i class="fas fa-clock text-blue-500 mr-2"></i>
+                    <span id="current-time" class="font-mono">00:00:00</span>
+                </div>
+                <div class="bg-white p-3 rounded-lg shadow flex items-center">
+                    <i class="fas fa-calendar-day text-blue-500 mr-2"></i>
+                    <span id="current-date" class="font-mono">01/01/2023</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Back Button -->
+        <div class="mb-6">
+            <button id="back-to-dashboard" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center">
+                <i class="fas fa-arrow-left mr-2"></i> Kembali ke Dashboard
+            </button>
+        </div>
+
+        <!-- Display Content -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex justify-center items-center">
+                <img src="images/lt1.png" alt="Layout 1" class="max-w-full h-auto">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        // Update current time and date
+        function updateDateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+            const dateStr = now.toLocaleDateString('en-GB');
+            document.getElementById('current-time').textContent = timeStr;
+            document.getElementById('current-date').textContent = dateStr;
+        }
+        
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        // Back to dashboard button
+        document.getElementById('back-to-dashboard').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html> 

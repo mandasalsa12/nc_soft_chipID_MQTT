@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive PDF with Draggable Shapes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        #pdf-container {
+            position: relative;
+            width: 100%;
+            height: 80vh;
+            overflow: auto;
+            border: 1px solid #e5e7eb;
+            background-color: #f3f4f6;
+        }
+        
+        #pdf-render {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .shape {
+            position: absolute;
+            cursor: move;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .shape.triangle {
+            width: 0;
+            height: 0;
+            border-left: solid transparent;
+            border-right: solid transparent;
+            border-bottom: solid;
+        }
+        
+        .shape.circle {
+            border-radius: 50%;
+        }
+        
+        .shape.square {
+            border-radius: 0;
+        }
+        
+        .blinking {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        
+        .shape-info {
+            position: absolute;
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 100;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        
+        .shape.selected {
+            outline: 2px dashed #3b82f6;
+            outline-offset: 2px;
+        }
+        
+        #coordinates-data {
+            font-family: monospace;
+            white-space: pre;
+            background-color: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8 text-blue-600">Interactive PDF with Draggable Shapes</h1>
+        
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex flex-wrap gap-4 mb-6">
+                <div class="w-full md:w-auto">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Shape Type</label>
+                    <select id="shape-type" class="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="triangle">Triangle</option>
+                        <option value="circle">Circle</option>
+                        <option value="square">Square</option>
+                    </select>
+                </div>
+                
+                <div class="w-full md:w-auto">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Shape Size (px)</label>
+                    <input type="number" id="shape-size" value="30" min="10" max="100" class="w-full md:w-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div class="w-full md:w-auto">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Shape Color</label>
+                    <input type="color" id="shape-color" value="#3b82f6" class="w-12 h-10 border border-gray-300 rounded-md shadow-sm cursor-pointer">
+                </div>
+                
+                <div class="w-full md:w-auto flex items-end">
+                    <button id="add-shape" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <i class="fas fa-plus mr-2"></i>Add Shape
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap gap-4">
+                <div class="w-full md:w-auto">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">X Position</label>
+                    <input type="number" id="pos-x" value="100" min="0" class="w-full md:w-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div class="w-full md:w-auto">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Y Position</label>
+                    <input type="number" id="pos-y" value="100" min="0" class="w-full md:w-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div class="w-full md:w-auto flex items-end">
+                    <button id="trigger-blink" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        <i class="fas fa-bolt mr-2"></i>Trigger Blink
+                    </button>
+                </div>
+                
+                <div class="w-full md:w-auto flex items-end">
+                    <button id="clear-shapes" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                        <i class="fas fa-trash mr-2"></i>Clear All
+                    </button>
+                </div>
+                
+                <div class="w-full md:w-auto flex items-end">
+                    <button id="save-coordinates" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                        <i class="fas fa-save mr-2"></i>Save Coordinates
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">PDF Viewer</h2>
+                <div class="flex items-center">
+                    <input type="file" id="pdf-upload" accept=".pdf" class="hidden">
+                    <label for="pdf-upload" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 cursor-pointer text-sm">
+                        <i class="fas fa-upload mr-1"></i>Upload PDF
+                    </label>
+                </div>
+            </div>
+            
+            <div id="pdf-container">
+                <canvas id="pdf-render"></canvas>
+                <div id="shapes-container"></div>
+            </div>
+            
+            <div class="mt-4 flex justify-between items-center">
+                <div class="flex gap-2">
+                    <button id="prev-page" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+                        <i class="fas fa-chevron-left"></i> Prev
+                    </button>
+                    <span id="page-num" class="px-3 py-1 text-gray-700">Page 1 of 1</span>
+                    <button id="next-page" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="text-sm text-gray-500">
+                    <span id="shape-count">0 shapes</span> on page
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">Saved Coordinates</h2>
+                <button id="copy-coordinates" class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm">
+                    <i class="fas fa-copy mr-1"></i>Copy to Clipboard
+                </button>
+            </div>
+            <pre id="coordinates-data">No coordinates saved yet</pre>
+        </div>
+    </div>
+
+    <script>
+        // PDF.js configuration
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+        
+        // App state
+        const state = {
+            pdf: null,
+            pageNum: 1,
+            pageRendering: false,
+            pageNumPending: null,
+            scale: 1.5,
+            shapes: [],
+            currentBlinking: null,
+            selectedShape: null,
+            isDragging: false,
+            dragOffsetX: 0,
+            dragOffsetY: 0
+        };
+        
+        // DOM elements
+        const canvas = document.getElementById('pdf-render');
+        const ctx = canvas.getContext('2d');
+        const shapesContainer = document.getElementById('shapes-container');
+        const coordinatesData = document.getElementById('coordinates-data');
+        
+        // Initialize with a default PDF (you can replace this with your actual PDF)
+        const defaultPdfUrl = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/examples/learning/helloworld.pdf';
+        
+        // Load the PDF
+        function loadPdf(url) {
+            pdfjsLib.getDocument(url).promise.then(function(pdf) {
+                state.pdf = pdf;
+                document.getElementById('page-num').textContent = `Page 1 of ${pdf.numPages}`;
+                renderPage(1);
+            });
+        }
+        
+        // Render the page
+        function renderPage(num) {
+            state.pageRendering = true;
+            
+            state.pdf.getPage(num).then(function(page) {
+                const viewport = page.getViewport({ scale: state.scale });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                
+                const renderTask = page.render(renderContext);
+                
+                renderTask.promise.then(function() {
+                    state.pageRendering = false;
+                    if (state.pageNumPending !== null) {
+                        renderPage(state.pageNumPending);
+                        state.pageNumPending = null;
+                    }
+                    
+                    // Redraw shapes after PDF renders
+                    redrawShapes();
+                });
+            });
+            
+            document.getElementById('page-num').textContent = `Page ${num} of ${state.pdf.numPages}`;
+        }
+        
+        // Queue the page rendering
+        function queueRenderPage(num) {
+            if (state.pageRendering) {
+                state.pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+        
+        // Previous page
+        document.getElementById('prev-page').addEventListener('click', function() {
+            if (state.pageNum <= 1) return;
+            state.pageNum--;
+            queueRenderPage(state.pageNum);
+        });
+        
+        // Next page
+        document.getElementById('next-page').addEventListener('click', function() {
+            if (state.pageNum >= state.pdf.numPages) return;
+            state.pageNum++;
+            queueRenderPage(state.pageNum);
+        });
+        
+        // Handle PDF upload
+        document.getElementById('pdf-upload').addEventListener('change', function(e) {
+            if (e.target.files.length === 0) return;
+            
+            const file = e.target.files[0];
+            const fileReader = new FileReader();
+            
+            fileReader.onload = function() {
+                const typedArray = new Uint8Array(this.result);
+                loadPdf(typedArray);
+            };
+            
+            fileReader.readAsArrayBuffer(file);
+        });
+        
+        // Add shape to the PDF
+        document.getElementById('add-shape').addEventListener('click', function() {
+            const type = document.getElementById('shape-type').value;
+            const size = parseInt(document.getElementById('shape-size').value);
+            const color = document.getElementById('shape-color').value;
+            const x = parseInt(document.getElementById('pos-x').value);
+            const y = parseInt(document.getElementById('pos-y').value);
+            
+            const shape = {
+                id: Date.now(),
+                type,
+                size,
+                color,
+                x,
+                y,
+                page: state.pageNum
+            };
+            
+            state.shapes.push(shape);
+            redrawShapes();
+            updateShapeCount();
+        });
+        
+        // Trigger blinking for selected shape
+        document.getElementById('trigger-blink').addEventListener('click', function() {
+            const x = parseInt(document.getElementById('pos-x').value);
+            const y = parseInt(document.getElementById('pos-y').value);
+            
+            // Find shape at these coordinates
+            const shape = state.shapes.find(s => 
+                s.page === state.pageNum && 
+                Math.abs(s.x - x) < s.size && 
+                Math.abs(s.y - y) < s.size
+            );
+            
+            if (shape) {
+                // Stop current blinking if any
+                if (state.currentBlinking) {
+                    const currentElement = document.getElementById(`shape-${state.currentBlinking}`);
+                    if (currentElement) currentElement.classList.remove('blinking');
+                }
+                
+                // Start blinking the found shape
+                state.currentBlinking = shape.id;
+                const shapeElement = document.getElementById(`shape-${shape.id}`);
+                if (shapeElement) {
+                    shapeElement.classList.add('blinking');
+                    
+                    // Stop blinking after 3 seconds
+                    setTimeout(() => {
+                        shapeElement.classList.remove('blinking');
+                        state.currentBlinking = null;
+                    }, 3000);
+                }
+            }
+        });
+        
+        // Clear all shapes
+        document.getElementById('clear-shapes').addEventListener('click', function() {
+            state.shapes = state.shapes.filter(s => s.page !== state.pageNum);
+            redrawShapes();
+            updateShapeCount();
+        });
+        
+        // Save coordinates to display
+        document.getElementById('save-coordinates').addEventListener('click', function() {
+            const currentPageShapes = state.shapes.filter(s => s.page === state.pageNum);
+            const data = {
+                page: state.pageNum,
+                shapes: currentPageShapes.map(shape => ({
+                    type: shape.type,
+                    size: shape.size,
+                    color: shape.color,
+                    x: shape.x,
+                    y: shape.y
+                }))
+            };
+            
+            coordinatesData.textContent = JSON.stringify(data, null, 2);
+        });
+        
+        // Copy coordinates to clipboard
+        document.getElementById('copy-coordinates').addEventListener('click', function() {
+            const text = coordinatesData.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const button = document.getElementById('copy-coordinates');
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                }, 2000);
+            });
+        });
+        
+        // Redraw all shapes on current page
+        function redrawShapes() {
+            // Clear existing shapes
+            shapesContainer.innerHTML = '';
+            
+            // Filter shapes for current page
+            const currentPageShapes = state.shapes.filter(s => s.page === state.pageNum);
+            
+            // Draw each shape
+            currentPageShapes.forEach(shape => {
+                const shapeElement = document.createElement('div');
+                shapeElement.id = `shape-${shape.id}`;
+                shapeElement.className = `shape ${shape.type}`;
+                
+                // Position and style the shape
+                shapeElement.style.left = `${shape.x}px`;
+                shapeElement.style.top = `${shape.y}px`;
+                shapeElement.style.width = `${shape.size}px`;
+                shapeElement.style.height = `${shape.type === 'triangle' ? 0 : shape.size}px`;
+                
+                if (shape.type === 'triangle') {
+                    shapeElement.style.borderLeftWidth = `${shape.size/2}px`;
+                    shapeElement.style.borderRightWidth = `${shape.size/2}px`;
+                    shapeElement.style.borderBottomWidth = `${shape.size}px`;
+                    shapeElement.style.borderBottomColor = shape.color;
+                } else {
+                    shapeElement.style.backgroundColor = shape.color;
+                }
+                
+                // Add hover info
+                const infoElement = document.createElement('div');
+                infoElement.className = 'shape-info';
+                infoElement.style.left = `${shape.x + shape.size + 5}px`;
+                infoElement.style.top = `${shape.y}px`;
+                infoElement.innerHTML = `
+                    <strong>${shape.type}</strong><br>
+                    X: ${shape.x}<br>
+                    Y: ${shape.y}<br>
+                    Size: ${shape.size}px
+                `;
+                infoElement.style.display = 'none';
+                
+                // Show info on hover
+                shapeElement.addEventListener('mouseenter', () => {
+                    infoElement.style.display = 'block';
+                });
+                
+                shapeElement.addEventListener('mouseleave', () => {
+                    infoElement.style.display = 'none';
+                });
+                
+                // Click to select
+                shapeElement.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    
+                    // Deselect previous shape
+                    if (state.selectedShape) {
+                        const prevElement = document.getElementById(`shape-${state.selectedShape}`);
+                        if (prevElement) prevElement.classList.remove('selected');
+                    }
+                    
+                    // Select this shape
+                    state.selectedShape = shape.id;
+                    shapeElement.classList.add('selected');
+                    
+                    // Update position inputs
+                    document.getElementById('pos-x').value = shape.x;
+                    document.getElementById('pos-y').value = shape.y;
+                    
+                    // Set up for dragging
+                    state.isDragging = true;
+                    state.dragOffsetX = e.clientX - shape.x;
+                    state.dragOffsetY = e.clientY - shape.y;
+                    
+                    // Prevent text selection during drag
+                    document.body.style.userSelect = 'none';
+                });
+                
+                shapesContainer.appendChild(shapeElement);
+                shapesContainer.appendChild(infoElement);
+            });
+        }
+        
+        // Handle mouse move for dragging
+        document.addEventListener('mousemove', (e) => {
+            if (!state.isDragging || !state.selectedShape) return;
+            
+            const shape = state.shapes.find(s => s.id === state.selectedShape);
+            if (!shape) return;
+            
+            // Calculate new position
+            const rect = canvas.getBoundingClientRect();
+            let newX = e.clientX - state.dragOffsetX - rect.left;
+            let newY = e.clientY - state.dragOffsetY - rect.top;
+            
+            // Constrain to canvas bounds
+            newX = Math.max(0, Math.min(newX, canvas.width - shape.size));
+            newY = Math.max(0, Math.min(newY, canvas.height - (shape.type === 'triangle' ? 0 : shape.size)));
+            
+            // Update shape position
+            shape.x = newX;
+            shape.y = newY;
+            
+            // Update position inputs
+            document.getElementById('pos-x').value = Math.round(newX);
+            document.getElementById('pos-y').value = Math.round(newY);
+            
+            // Redraw shapes
+            redrawShapes();
+        });
+        
+        // Handle mouse up to stop dragging
+        document.addEventListener('mouseup', () => {
+            if (state.isDragging) {
+                state.isDragging = false;
+                document.body.style.userSelect = '';
+            }
+        });
+        
+        // Update shape count display
+        function updateShapeCount() {
+            const count = state.shapes.filter(s => s.page === state.pageNum).length;
+            document.getElementById('shape-count').textContent = `${count} shape${count !== 1 ? 's' : ''}`;
+        }
+        
+        // Initialize with default PDF
+        loadPdf(defaultPdfUrl);
+        
+        // Allow clicking on PDF to set coordinates
+        canvas.addEventListener('click', function(e) {
+            if (state.isDragging) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            document.getElementById('pos-x').value = Math.round(x);
+            document.getElementById('pos-y').value = Math.round(y);
+            
+            // Deselect any selected shape
+            if (state.selectedShape) {
+                const shapeElement = document.getElementById(`shape-${state.selectedShape}`);
+                if (shapeElement) shapeElement.classList.remove('selected');
+                state.selectedShape = null;
+            }
+        });
+    </script>
+</body>
+</html>

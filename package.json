@@ -1,0 +1,38 @@
+{
+  "name": "nurse-call-system",
+  "version": "1.0.0",
+  "description": "Sistem Panggilan Perawat",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --debug",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@electron/remote": "^2.1.2",
+    "electron": "^28.0.0",
+    "serialport": "^12.0.0",
+    "@serialport/parser-readline": "^12.0.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.nursecall.app",
+    "mac": {
+      "category": "public.app-category.medical"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "extraResources": [
+      {
+        "from": "sounds/",
+        "to": "sounds/",
+        "filter": ["**/*"]
+      }
+    ]
+  }
+}
